@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Calendar, Clock, Edit2 } from "lucide-react"; // Import Edit2 icon
+import { Calendar, Clock, Edit2, Trash2 } from "lucide-react"; // Import Edit2 icon and Trash2
 
 // Define the Task interface based on GET /boards/:boardId/tasks
 export interface Task {
@@ -20,12 +20,14 @@ interface TaskCardProps {
   task: Task;
   onStatusChange: (taskId: number, newStatus: Task["status"]) => void; // Callback for status change
   onEdit: (task: Task) => void; // Add onEdit prop
+  onDelete: (taskId: number) => void; // Add onDelete prop
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({
   task,
   onStatusChange,
   onEdit,
+  onDelete,
 }) => {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -165,6 +167,15 @@ const TaskCard: React.FC<TaskCardProps> = ({
             aria-label="Edit Task"
           >
             <Edit2 size={14} />
+          </button>
+
+          {/* Delete Button */}
+          <button
+            onClick={() => onDelete(task.id)} // Call onDelete with task id
+            className="text-gray-400 hover:text-red-600 p-0.5 rounded focus:outline-none focus:ring-1 focus:ring-red-500"
+            aria-label="Delete Task"
+          >
+            <Trash2 size={14} />
           </button>
 
           {/* Status Dropdown */}

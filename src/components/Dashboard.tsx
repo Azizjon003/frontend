@@ -6,6 +6,8 @@ import { Task } from "./TaskCard"; // Import Task interface
 import NewTaskForm from "./NewTaskForm"; // Import the form component
 import InviteMemberForm from "./InviteMemberForm"; // Import the invite form
 import CreateBoardForm from "./CreateBoardForm"; // Import the create board form
+import BoardMembersModal from "./BoardMembersModal"; // Import the new modal
+import { Users } from "lucide-react"; // Only Users needed in header now
 
 const API_URL = "http://localhost:3000"; // Use the same base URL
 
@@ -15,6 +17,14 @@ interface Board {
   title: string;
   description: string;
   // Add other relevant fields from the API response if needed
+}
+
+// Define BoardMember interface based on GET /boards/:boardId/members response
+export interface BoardMember {
+  userId: string;
+  email: string;
+  name: string;
+  assignedAt: string; // Assuming it's a string (ISO date)
 }
 
 const Dashboard: React.FC = () => {
@@ -31,6 +41,13 @@ const Dashboard: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false); // State for invite modal
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false); // State for create board modal
+
+  // State for board members
+  const [boardMembers, setBoardMembers] = useState<BoardMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  // State to control the new members modal
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
 
   // Effect to fetch boards
   useEffect(() => {
@@ -124,6 +141,55 @@ const Dashboard: React.FC = () => {
 
     fetchTasks();
   }, [selectedBoardId, accessToken, navigate]);
+
+  // Effect to fetch members when selectedBoardId changes
+  useEffect(() => {
+    if (!selectedBoardId || !accessToken) {
+      setBoardMembers([]);
+      setMembersError(null);
+      return;
+    }
+
+    const fetchMembers = async () => {
+      setBoardMembers([]);
+      setLoadingMembers(true);
+      setMembersError(null);
+      try {
+        const response = await axios.get(
+          `${API_URL}/boards/${selectedBoardId}/members`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+        if (Array.isArray(response.data)) {
+          setBoardMembers(response.data as BoardMember[]);
+        } else {
+          console.error(
+            "API did not return an array of members:",
+            response.data
+          );
+          setMembersError("Failed to load members: Invalid data format.");
+          setBoardMembers([]);
+        }
+      } catch (err: any) {
+        console.error(
+          `Failed to fetch members for board ${selectedBoardId}:`,
+          err
+        );
+        setMembersError("Failed to load members for the selected board.");
+        setBoardMembers([]);
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          setMembersError("Authentication error loading members.");
+        }
+      } finally {
+        setLoadingMembers(false);
+      }
+    };
+
+    // Fetch members when the board changes.
+    // The modal will handle showing loading/data state.
+    fetchMembers();
+  }, [selectedBoardId, accessToken]);
 
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
@@ -317,9 +383,33 @@ const Dashboard: React.FC = () => {
   const handleInviteSuccess = (message: string) => {
     alert(message); // Simple alert for success notification
     // Could replace with a more sophisticated notification system
+    // Optionally, re-fetch members after invite
+    if (selectedBoardId && accessToken) {
+      // Re-trigger the members fetch effect indirectly (or call fetchMembers directly)
+      // To re-trigger effect, you might need a dummy state update, or refactor fetchMembers
+      const fetchUpdatedMembers = async () => {
+        // Simplified refetch
+        setLoadingMembers(true);
+        try {
+          const response = await axios.get(
+            `${API_URL}/boards/${selectedBoardId}/members`,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            }
+          );
+          setBoardMembers(response.data as BoardMember[]);
+        } catch (err) {
+          console.error("Failed to refetch members after invite:", err);
+          // Keep existing members, maybe show a small error?
+        } finally {
+          setLoadingMembers(false);
+        }
+      };
+      fetchUpdatedMembers();
+    }
   };
 
-  // Function to handle creating a new board
+  //  Function to handle creating a new board
   const handleCreateBoard = async (boardData: {
     title: string;
     description: string;
@@ -347,6 +437,41 @@ const Dashboard: React.FC = () => {
           : "Failed to create board. Please try again.";
       // Re-throw error for the form
       throw new Error(message);
+    }
+  };
+
+  // Function to handle deleting a task
+  const handleDeleteTask = async (taskId: number) => {
+    if (!selectedBoardId || !accessToken) {
+      setError("Cannot delete task: No board selected or not authenticated.");
+      return;
+    }
+
+    const originalTasks = [...tasks];
+    // Optimistically remove the task from the UI
+    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+    setError(null); // Clear previous errors
+
+    try {
+      const response = await axios.delete(
+        `${API_URL}/boards/${selectedBoardId}/tasks/${taskId}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+
+      // API returns 204 No Content on success, so no data to process
+      console.log(`Task ${taskId} deleted successfully.`);
+      // No need to update state again as it was done optimistically
+    } catch (err: any) {
+      console.error(`Failed to delete task ${taskId}:`, err);
+      // Revert the optimistic update if the API call fails
+      setTasks(originalTasks);
+      setError(`Failed to delete task ${taskId}. Please try again.`);
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        localStorage.removeItem("accessToken");
+        navigate("/login");
+      }
     }
   };
 
@@ -384,6 +509,7 @@ const Dashboard: React.FC = () => {
               onChange={(e) => {
                 setSelectedBoardId(e.target.value || null);
                 setError(null);
+                setMembersError(null); // Clear members error on board change
               }}
               className="bg-blue-700 text-white border border-blue-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-8 order-first sm:order-none" // Move selector first on small screens
             >
@@ -409,13 +535,14 @@ const Dashboard: React.FC = () => {
           >
             + New Task
           </button>
-          {/* Invite Member Button */}
+          {/* View Members Button */}
           <button
-            onClick={() => setIsInviteModalOpen(true)}
-            disabled={!selectedBoardId}
-            className="bg-indigo-500 text-white font-semibold py-1 px-3 rounded hover:bg-indigo-600 transition duration-200 text-sm h-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setIsMembersModalOpen(true)} // Open the modal
+            disabled={!selectedBoardId} // Only disable if no board selected
+            className="bg-cyan-600 text-white font-semibold py-1 px-3 rounded hover:bg-cyan-700 transition duration-200 text-sm h-8 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
-            + Invite Member
+            <Users size={14} className="mr-1" />
+            View Members
           </button>
           {/* Logout Button */}
           <button
@@ -432,6 +559,7 @@ const Dashboard: React.FC = () => {
           Error: {error}
         </div>
       )}
+
       {/* Board Columns Area */}
       <div className="flex-grow overflow-x-auto pb-4">
         {" "}
@@ -448,18 +576,21 @@ const Dashboard: React.FC = () => {
                 tasks={todoTasks}
                 onStatusChange={handleStatusChange}
                 onEdit={handleOpenEditModal}
+                onDelete={handleDeleteTask}
               />
               <TaskColumn
                 title="IN PROGRESS"
                 tasks={inProgressTasks}
                 onStatusChange={handleStatusChange}
                 onEdit={handleOpenEditModal}
+                onDelete={handleDeleteTask}
               />
               <TaskColumn
                 title="COMPLETED"
                 tasks={completedTasks}
                 onStatusChange={handleStatusChange}
                 onEdit={handleOpenEditModal}
+                onDelete={handleDeleteTask}
               />
             </div>
           )
@@ -504,7 +635,7 @@ const Dashboard: React.FC = () => {
         <InviteMemberForm
           boardId={selectedBoardId}
           onClose={() => setIsInviteModalOpen(false)}
-          onInviteSuccess={handleInviteSuccess} // Pass success handler
+          onInviteSuccess={handleInviteSuccess}
         />
       )}
       {/* Create Board Modal */}
@@ -514,6 +645,20 @@ const Dashboard: React.FC = () => {
           onSubmit={handleCreateBoard}
         />
       )}
+
+      {/* ADDED Board Members Modal */}
+      <BoardMembersModal
+        isOpen={isMembersModalOpen}
+        onClose={() => setIsMembersModalOpen(false)}
+        members={boardMembers}
+        loading={loadingMembers}
+        error={membersError}
+        boardId={selectedBoardId}
+        onInviteClick={() => {
+          setIsMembersModalOpen(false); // Close this modal
+          setIsInviteModalOpen(true); // Open the invite modal
+        }}
+      />
     </div>
   );
 };

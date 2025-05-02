@@ -11,6 +11,7 @@ interface TaskColumnProps {
   tasks: Task[];
   onStatusChange: (taskId: number, newStatus: Task["status"]) => void; // Add prop
   onEdit: (task: Task) => void; // Add onEdit prop
+  onDelete: (taskId: number) => void; // Add onDelete prop
 }
 
 const TaskColumn: React.FC<TaskColumnProps> = ({
@@ -18,6 +19,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({
   tasks,
   onStatusChange,
   onEdit,
+  onDelete,
 }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: title, // Use the status (title) as the droppable ID
@@ -47,6 +49,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({
                 task={task}
                 onStatusChange={onStatusChange}
                 onEdit={onEdit}
+                onDelete={onDelete}
               />
             ))
           ) : (
