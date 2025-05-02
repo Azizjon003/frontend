@@ -5,6 +5,7 @@ import TaskColumn from "./TaskColumn"; // Import TaskColumn
 import { Task } from "./TaskCard"; // Import Task interface
 import NewTaskForm from "./NewTaskForm"; // Import the form component
 import InviteMemberForm from "./InviteMemberForm"; // Import the invite form
+import CreateBoardForm from "./CreateBoardForm"; // Import the create board form
 
 const API_URL = "http://localhost:3000"; // Use the same base URL
 
@@ -29,6 +30,7 @@ const Dashboard: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false); // State for invite modal
+  const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false); // State for create board modal
 
   // Effect to fetch boards
   useEffect(() => {
@@ -317,6 +319,37 @@ const Dashboard: React.FC = () => {
     // Could replace with a more sophisticated notification system
   };
 
+  // Function to handle creating a new board
+  const handleCreateBoard = async (boardData: {
+    title: string;
+    description: string;
+  }) => {
+    if (!accessToken) {
+      throw new Error("Authentication token not found.");
+    }
+    setError(null);
+    try {
+      const response = await axios.post(`${API_URL}/boards`, boardData, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const newBoard = response.data as Board; // Assuming API returns the created board
+      setBoards((prevBoards) => [...prevBoards, newBoard]); // Add new board to list
+      setSelectedBoardId(newBoard.id); // Select the newly created board
+      setIsCreateBoardModalOpen(false); // Close modal
+    } catch (err: any) {
+      console.error("Failed to create board:", err);
+      const message =
+        axios.isAxiosError(err) && err.response?.data?.message
+          ? err.response.data.message
+          : "Failed to create board. Please try again.";
+      // Re-throw error for the form
+      throw new Error(message);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-blue-900 p-4 flex flex-col">
       {" "}
@@ -330,6 +363,14 @@ const Dashboard: React.FC = () => {
         </h1>
         {/* Board Selector Dropdown */}
         <div className="flex items-center space-x-4">
+          {/* Create Board Button */}
+          <button
+            onClick={() => setIsCreateBoardModalOpen(true)}
+            className="bg-purple-600 text-white font-semibold py-1 px-3 rounded hover:bg-purple-700 transition duration-200 text-sm h-8"
+          >
+            + Create Board
+          </button>
+
           {loadingBoards ? (
             <span className="text-white text-sm">Loading boards...</span>
           ) : boards.length > 0 ? (
@@ -454,6 +495,13 @@ const Dashboard: React.FC = () => {
           boardId={selectedBoardId}
           onClose={() => setIsInviteModalOpen(false)}
           onInviteSuccess={handleInviteSuccess} // Pass success handler
+        />
+      )}
+      {/* Create Board Modal */}
+      {isCreateBoardModalOpen && (
+        <CreateBoardForm
+          onClose={() => setIsCreateBoardModalOpen(false)}
+          onSubmit={handleCreateBoard}
         />
       )}
     </div>
