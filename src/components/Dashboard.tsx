@@ -25,6 +25,8 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false); // State for modal
   const accessToken = localStorage.getItem("accessToken");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // Effect to fetch boards
   useEffect(() => {
@@ -72,13 +74,13 @@ const Dashboard: React.FC = () => {
   // Effect to fetch tasks when selectedBoardId changes
   useEffect(() => {
     if (!selectedBoardId || !accessToken) {
-      setTasks([]); // Clear tasks if no board is selected
+      setTasks([]);
       return;
     }
 
     const fetchTasks = async () => {
       setLoadingTasks(true);
-      setError(null); // Clear previous errors
+      setError(null);
       try {
         const response = await axios.get(
           `${API_URL}/boards/${selectedBoardId}/tasks`,
@@ -87,7 +89,14 @@ const Dashboard: React.FC = () => {
           }
         );
         if (Array.isArray(response.data)) {
-          setTasks(response.data);
+          // Map 'DONE' status from backend to 'COMPLETED' for frontend state
+          const tasksFromApi = response.data.map((task: any) => {
+            if (task.status === "DONE") {
+              return { ...task, status: "COMPLETED" };
+            }
+            return task;
+          });
+          setTasks(tasksFromApi as Task[]); // Set the mapped tasks
         } else {
           console.error("API did not return an array of tasks:", response.data);
           setError("Failed to load tasks: Invalid data format.");
@@ -99,9 +108,8 @@ const Dashboard: React.FC = () => {
           err
         );
         setError("Failed to load tasks for the selected board.");
-        setTasks([]); // Clear tasks on error
+        setTasks([]);
         if (axios.isAxiosError(err) && err.response?.status === 401) {
-          // Handle auth error potentially caused by expired token during task fetch
           localStorage.removeItem("accessToken");
           navigate("/login");
         }
@@ -111,7 +119,7 @@ const Dashboard: React.FC = () => {
     };
 
     fetchTasks();
-  }, [selectedBoardId, accessToken, navigate]); // Rerun when boardId or token changes
+  }, [selectedBoardId, accessToken, navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
@@ -124,37 +132,31 @@ const Dashboard: React.FC = () => {
     newStatus: Task["status"]
   ) => {
     if (!selectedBoardId || !accessToken) return;
-
-    // Optimistic UI Update
     const originalTasks = [...tasks];
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
         task.id === taskId ? { ...task, status: newStatus } : task
       )
     );
-
+    const statusForApi = newStatus === "COMPLETED" ? "DONE" : newStatus;
     try {
-      // API call to update status
-      // Assuming PATCH /boards/:boardId/tasks/:taskId endpoint
       await axios.patch(
         `${API_URL}/boards/${selectedBoardId}/tasks/${taskId}`,
-        { status: newStatus }, // Send the new status in the request body
+        { status: statusForApi },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json", // Important for PATCH requests
+            "Content-Type": "application/json",
           },
         }
       );
-      // If API call is successful, the optimistic update is already done.
-      // Optionally: show a success message or log success
-      console.log(`Task ${taskId} status updated to ${newStatus}`);
+      console.log(
+        `Task ${taskId} status updated to ${newStatus} (sent as ${statusForApi})`
+      );
     } catch (err: any) {
       console.error(`Failed to update status for task ${taskId}:`, err);
-      // Revert UI if API call fails
       setTasks(originalTasks);
       setError(`Failed to update status for task ${taskId}. Please try again.`);
-      // Optional: Handle specific errors like 401
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         localStorage.removeItem("accessToken");
         navigate("/login");
@@ -201,6 +203,9 @@ const Dashboard: React.FC = () => {
       // Add the new task to the state
       // Ensure the response data matches the Task interface
       const newTask = response.data as Task; // Type assertion, ensure API returns the created task correctly
+      if ((newTask.status as any) === "DONE") {
+        newTask.status = "COMPLETED";
+      }
       setTasks((prevTasks) => [...prevTasks, newTask]);
       setIsNewTaskModalOpen(false); // Close modal on success
     } catch (err: any) {
@@ -218,6 +223,75 @@ const Dashboard: React.FC = () => {
   const todoTasks = tasks.filter((task) => task.status === "TODO");
   const inProgressTasks = tasks.filter((task) => task.status === "IN_PROGRESS");
   const completedTasks = tasks.filter((task) => task.status === "COMPLETED");
+
+  const handleOpenEditModal = (task: Task) => {
+    setEditingTask(task);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setEditingTask(null);
+    setIsEditModalOpen(false);
+  };
+
+  const handleUpdateTask = async (taskData: {
+    title: string;
+    description: string;
+    dueDate: string | null;
+  }) => {
+    if (!editingTask || !selectedBoardId || !accessToken) {
+      throw new Error(
+        "Cannot update task: No task selected or not authenticated."
+      );
+    }
+    const originalTasks = [...tasks];
+    const updatedTaskDataForOptimistic = {
+      // Renamed variable for clarity
+      ...editingTask,
+      title: taskData.title,
+      description: taskData.description,
+      dueDate: taskData.dueDate,
+    };
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === editingTask.id ? updatedTaskDataForOptimistic : task
+      )
+    );
+    const apiData: any = {
+      title: taskData.title,
+      description: taskData.description,
+      dueDate: taskData.dueDate,
+      // status: statusForApi // If status was editable here, map DONE -> COMPLETED
+    };
+    try {
+      const response = await axios.patch(
+        `${API_URL}/boards/${selectedBoardId}/tasks/${editingTask.id}`,
+        apiData,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const savedTask = response.data as Task;
+      if ((savedTask.status as any) === "DONE") {
+        savedTask.status = "COMPLETED";
+      }
+      setTasks((prevTasks) =>
+        prevTasks.map((task) => (task.id === savedTask.id ? savedTask : task))
+      );
+      handleCloseEditModal();
+    } catch (err: any) {
+      console.error(`Failed to update task ${editingTask.id}:`, err);
+      setTasks(originalTasks);
+      const message =
+        axios.isAxiosError(err) && err.response?.data?.message
+          ? err.response.data.message
+          : "Failed to update task. Please try again.";
+      throw new Error(message);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-blue-900 p-4 flex flex-col">
@@ -289,16 +363,19 @@ const Dashboard: React.FC = () => {
                 title="TO DO"
                 tasks={todoTasks}
                 onStatusChange={handleStatusChange}
+                onEdit={handleOpenEditModal}
               />
               <TaskColumn
                 title="IN PROGRESS"
                 tasks={inProgressTasks}
                 onStatusChange={handleStatusChange}
+                onEdit={handleOpenEditModal}
               />
               <TaskColumn
                 title="COMPLETED"
                 tasks={completedTasks}
                 onStatusChange={handleStatusChange}
+                onEdit={handleOpenEditModal}
               />
             </div>
           )
@@ -326,6 +403,16 @@ const Dashboard: React.FC = () => {
             setError(null); // Clear errors when closing modal
           }}
           onSubmit={handleAddTask}
+        />
+      )}
+      {/* Edit Task Modal */}
+      {isEditModalOpen && editingTask && (
+        <NewTaskForm
+          boardId={selectedBoardId!}
+          isEditing
+          initialData={editingTask}
+          onClose={handleCloseEditModal}
+          onSubmit={handleUpdateTask}
         />
       )}
     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Calendar, Clock, Edit2 } from "lucide-react"; // Import Edit2 icon
 
 // Define the Task interface based on GET /boards/:boardId/tasks
 export interface Task {
@@ -6,7 +7,7 @@ export interface Task {
   title: string;
   description: string;
   status: "TODO" | "IN_PROGRESS" | "COMPLETED";
-  priority?: "low" | "medium" | "high" | "highest"; // Added optional priority
+  priority?: "LOW" | "MEDIUM" | "HIGH" | "HIGHEST"; // Updated priority type
   dueDate: string | null; // Assumed to be ISO string or null
   boardId: string;
   assigneeId: string | null; // Can be null
@@ -18,9 +19,14 @@ export interface Task {
 interface TaskCardProps {
   task: Task;
   onStatusChange: (taskId: number, newStatus: Task["status"]) => void; // Callback for status change
+  onEdit: (task: Task) => void; // Add onEdit prop
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange }) => {
+const TaskCard: React.FC<TaskCardProps> = ({
+  task,
+  onStatusChange,
+  onEdit,
+}) => {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -47,19 +53,21 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange }) => {
     setIsStatusOpen(false);
   };
 
-  // Function to get priority tag style
+  // Update priority styles to use custom colors from tailwind config
   const getPriorityStyles = (priority?: Task["priority"]) => {
-    switch (priority) {
-      case "low":
-        return { tag: "bg-green-100 text-green-800", dateBg: "bg-green-50" };
-      case "medium":
-        return { tag: "bg-yellow-100 text-yellow-800", dateBg: "bg-yellow-50" };
-      case "high":
-        return { tag: "bg-orange-100 text-orange-800", dateBg: "bg-orange-50" }; // Adjusted colors
-      case "highest":
-        return { tag: "bg-red-100 text-red-800", dateBg: "bg-red-50" }; // Adjusted colors
-      default:
-        return { tag: "hidden", dateBg: "bg-gray-100" }; // Hide tag if no priority
+    // Use a darker text color for better contrast on custom backgrounds
+    const textClass = "text-black/80";
+    if (priority === "LOW") {
+      return { tag: `bg-priority-low ${textClass}`, dateBg: "bg-green-50" };
+    } else if (priority === "MEDIUM") {
+      return { tag: `bg-priority-medium ${textClass}`, dateBg: "bg-yellow-50" };
+    } else if (priority === "HIGH") {
+      return { tag: `bg-priority-high ${textClass}`, dateBg: "bg-orange-50" };
+    } else if (priority === "HIGHEST") {
+      return { tag: `bg-priority-highest ${textClass}`, dateBg: "bg-red-50" };
+    } else {
+      // Default/no priority
+      return { tag: "hidden", dateBg: "bg-gray-100" };
     }
   };
 
@@ -110,9 +118,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange }) => {
       {/* Priority Tag */}
       {task.priority && (
         <span
-          className={`text-xs font-semibold px-2 py-0.5 rounded-full inline-block mb-2 ${priorityTagStyle}`}
+          className={`text-xs font-semibold px-2.5 py-0.5 rounded inline-block mb-2 ${priorityTagStyle}`}
         >
-          {task.priority} priority
+          {task.priority.toLowerCase()} priority
         </span>
       )}
       {/* Title */}
@@ -123,24 +131,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange }) => {
       <div className="flex justify-between items-center text-xs">
         {/* Date and Time Span with background based on priority */}
         <span
-          className={`flex items-center space-x-2 px-2 py-0.5 rounded ${priorityDateBg}`}
+          className={`flex items-center space-x-2 px-2 py-1 rounded ${priorityDateBg}`}
         >
           {formattedDate ? (
             <span className="text-gray-600 flex items-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3.5 w-3.5 mr-1 text-gray-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
+              <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
               {formattedDate}
             </span>
           ) : (
@@ -148,71 +143,70 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange }) => {
           )}
           {formattedTime && (
             <span className="text-gray-500 flex items-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3.5 w-3.5 mr-1 text-gray-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+              <Clock className="h-3.5 w-3.5 mr-1 text-gray-500" />
               {formattedTime}
             </span>
           )}
         </span>
 
-        {/* Status Dropdown */}
-        <div className="relative" ref={dropdownRef}>
+        {/* Right side controls: Edit button and Status Dropdown */}
+        <div className="flex items-center space-x-2">
+          {/* Edit Button */}
           <button
-            onClick={() => setIsStatusOpen(!isStatusOpen)}
-            className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs hover:bg-gray-200 focus:outline-none flex items-center"
+            onClick={() => onEdit(task)} // Call onEdit with task data
+            className="text-gray-400 hover:text-blue-600 p-0.5 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            aria-label="Edit Task"
           >
-            {task.status.replace("_", " ")}
-            {/* Replace underscore for display */}
-            <svg
-              className={`w-3 h-3 ml-1 transition-transform duration-200 ${
-                isStatusOpen ? "rotate-180" : ""
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M19 9l-7 7-7-7"
-              ></path>
-            </svg>
+            <Edit2 size={14} />
           </button>
 
-          {isStatusOpen && (
-            <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-              <ul className="py-1">
-                {statusOptions.map((statusOption) => (
-                  <li key={statusOption}>
-                    <button
-                      onClick={() => handleStatusClick(statusOption)}
-                      className={`w-full text-left px-3 py-1 text-xs ${
-                        task.status === statusOption
-                          ? "bg-gray-100 text-gray-900"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {statusOption.replace("_", " ")}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* Status Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsStatusOpen(!isStatusOpen)}
+              className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs hover:bg-gray-200 focus:outline-none flex items-center"
+            >
+              {task.status.replace("_", " ")}
+              {/* Replace underscore for display */}
+              <svg
+                className={`w-3 h-3 ml-1 transition-transform duration-200 ${
+                  isStatusOpen ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 9l-7 7-7-7"
+                ></path>
+              </svg>
+            </button>
+
+            {isStatusOpen && (
+              <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                <ul className="py-1">
+                  {statusOptions.map((statusOption) => (
+                    <li key={statusOption}>
+                      <button
+                        onClick={() => handleStatusClick(statusOption)}
+                        className={`w-full text-left px-3 py-1 text-xs ${
+                          task.status === statusOption
+                            ? "bg-gray-100 text-gray-900"
+                            : "text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {statusOption.replace("_", " ")}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,25 +1,60 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
+import { Task } from "./TaskCard"; // Import Task interface
 
 interface NewTaskFormProps {
-  boardId: string; // Needed to know which board to add the task to
+  boardId: string;
   onClose: () => void;
   onSubmit: (taskData: {
     title: string;
     description: string;
     dueDate: string | null;
-  }) => Promise<void>; // Make onSubmit async
+  }) => Promise<void>;
+  initialData?: Task; // Optional initial data for editing
+  isEditing?: boolean; // Flag to indicate edit mode
 }
+
+// Helper function to format ISO date string to YYYY-MM-DDTHH:mm for datetime-local input
+const formatISOToLocalDateTime = (
+  isoString: string | null | undefined
+): string => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    // Adjust for timezone offset to get local time in YYYY-MM-DDTHH:mm format
+    const timezoneOffset = date.getTimezoneOffset() * 60000; // Offset in milliseconds
+    const localISOTime = new Date(date.getTime() - timezoneOffset)
+      .toISOString()
+      .slice(0, 16);
+    return localISOTime;
+  } catch {
+    return ""; // Return empty string if date is invalid
+  }
+};
 
 const NewTaskForm: React.FC<NewTaskFormProps> = ({
   boardId,
   onClose,
   onSubmit,
+  initialData,
+  isEditing = false, // Default to false
 }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [dueDateTime, setDueDateTime] = useState(""); // Changed state to handle datetime-local value (YYYY-MM-DDTHH:mm)
+  const [dueDateTime, setDueDateTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill form if in edit mode
+  useEffect(() => {
+    if (isEditing && initialData) {
+      setTitle(initialData.title || "");
+      setDescription(initialData.description || "");
+      setDueDateTime(formatISOToLocalDateTime(initialData.dueDate));
+    }
+    // Reset form when initialData/isEditing changes (e.g., closing and reopening)
+    // Or handle reset logic in the parent component
+  }, [isEditing, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,14 +64,9 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
     }
     setIsSubmitting(true);
     setError(null);
-
-    // Convert dueDateTime (YYYY-MM-DDTHH:mm) to full ISO string or null
     let isoDueDate: string | null = null;
     if (dueDateTime) {
       try {
-        // Create Date object directly from the local datetime string
-        // Note: This assumes the user's local timezone. If UTC is strictly needed,
-        // further adjustments might be necessary depending on API requirements.
         const dateObj = new Date(dueDateTime);
         if (isNaN(dateObj.getTime())) {
           throw new Error("Invalid date/time value");
@@ -49,24 +79,28 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
         return;
       }
     }
-
     try {
       await onSubmit({ title, description, dueDate: isoDueDate });
-      onClose(); // Close modal after successful submission trigger in parent
+      onClose();
     } catch (apiError: any) {
-      // Error is now re-thrown from onSubmit in Dashboard, handle it here
-      setError(apiError.message || "Failed to create task. Please try again.");
+      setError(
+        apiError.message ||
+          `Failed to ${isEditing ? "update" : "create"} task. Please try again.`
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    // Basic modal styling (overlay and content)
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">New Task</h2>
+        {/* Change title based on mode */}
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">
+          {isEditing ? "Edit Task" : "New Task"}
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title Input */}
           <div>
             <label
               htmlFor="task-title"
@@ -84,6 +118,7 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
               required
             />
           </div>
+          {/* Description Input */}
           <div>
             <label
               htmlFor="task-description"
@@ -100,6 +135,7 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
+          {/* Due Date Input */}
           <div>
             <label
               htmlFor="due-date-time"
@@ -108,10 +144,10 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
               Due to
             </label>
             <input
-              type="datetime-local" // Changed input type
+              type="datetime-local"
               id="due-date-time"
-              value={dueDateTime} // Bind to new state
-              onChange={(e) => setDueDateTime(e.target.value)} // Update new state
+              value={dueDateTime}
+              onChange={(e) => setDueDateTime(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -133,9 +169,20 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+              // Change button text based on mode
+              className={`${
+                isEditing
+                  ? "bg-blue-500 hover:bg-blue-600 focus:ring-blue-500"
+                  : "bg-green-500 hover:bg-green-600 focus:ring-green-500"
+              } text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50`}
             >
-              {isSubmitting ? "Creating..." : "Create"}
+              {isSubmitting
+                ? isEditing
+                  ? "Updating..."
+                  : "Creating..."
+                : isEditing
+                ? "Update"
+                : "Create"}
             </button>
           </div>
         </form>
