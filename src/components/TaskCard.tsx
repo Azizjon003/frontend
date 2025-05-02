@@ -71,29 +71,32 @@ const TaskCard: React.FC<TaskCardProps> = ({
     }
   };
 
-  // Function to format date and time
+  // Updated formatDateTime function to match image format
   const formatDateTime = (
     dateString: string | null
   ): { date: string | null; time: string | null } => {
     if (!dateString) return { date: null, time: null };
     try {
       const dateObj = new Date(dateString);
+      // Format: May 9, 2025
       const date = dateObj.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
       });
-      // Check if time is significant (not midnight UTC)
+      // Format: HH:mm (24-hour)
+      // Check if time is significant (not midnight UTC), similar to before
       const time =
         dateObj.getUTCHours() !== 0 ||
         dateObj.getUTCMinutes() !== 0 ||
         dateObj.getUTCSeconds() !== 0 ||
         dateObj.getUTCMilliseconds() !== 0
-          ? dateObj.toLocaleTimeString("en-US", {
+          ? dateObj.toLocaleTimeString("en-GB", {
+              // Use en-GB for HH:mm format potentially
               hour: "2-digit",
               minute: "2-digit",
               hour12: false,
-            }) // Use 24-hour format as in image
+            })
           : null;
       return { date, time };
     } catch (e) {
@@ -112,7 +115,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const statusOptions: Task["status"][] = ["TODO", "IN_PROGRESS", "COMPLETED"];
 
   return (
-    <div className="bg-white p-3 rounded-md shadow border border-gray-200 mb-3">
+    <div className="bg-white p-4 rounded-md shadow border border-gray-200 mb-3">
       {" "}
       {/* Adjusted padding/margin/border */}
       {/* Priority Tag */}
@@ -123,10 +126,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
           {task.priority.toLowerCase()} priority
         </span>
       )}
-      {/* Title */}
-      <h4 className="font-medium text-gray-800 text-sm mb-1">{task.title}</h4>
-      {/* Description */}
-      <p className="text-sm text-gray-600 mb-3">{task.description}</p>
+      {/* Title - Add overflow handling */}
+      <h4 className="font-medium text-gray-800 text-sm mb-1 overflow-hidden break-words">
+        {task.title}
+      </h4>
+      {/* Description - Add overflow handling */}
+      <p className="text-sm text-gray-600 mb-3 overflow-hidden break-words">
+        {task.description}
+      </p>
       {/* Date/Time and Status */}
       <div className="flex justify-between items-center text-xs">
         {/* Date and Time Span with background based on priority */}
@@ -134,7 +141,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           className={`flex items-center space-x-2 px-2 py-1 rounded ${priorityDateBg}`}
         >
           {formattedDate ? (
-            <span className="text-gray-600 flex items-center">
+            <span className="text-gray-600 flex items-center whitespace-nowrap">
               <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
               {formattedDate}
             </span>
@@ -142,7 +149,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
             <span className="text-gray-400 italic">No date</span>
           )}
           {formattedTime && (
-            <span className="text-gray-500 flex items-center">
+            <span className="text-gray-500 flex items-center whitespace-nowrap">
               <Clock className="h-3.5 w-3.5 mr-1 text-gray-500" />
               {formattedTime}
             </span>
@@ -150,7 +157,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </span>
 
         {/* Right side controls: Edit button and Status Dropdown */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1">
           {/* Edit Button */}
           <button
             onClick={() => onEdit(task)} // Call onEdit with task data
@@ -164,7 +171,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsStatusOpen(!isStatusOpen)}
-              className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs hover:bg-gray-200 focus:outline-none flex items-center"
+              className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs hover:bg-gray-200 focus:outline-none flex items-center whitespace-nowrap"
             >
               {task.status.replace("_", " ")}
               {/* Replace underscore for display */}
