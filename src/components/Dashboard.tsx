@@ -4,6 +4,7 @@ import axios from "axios";
 import TaskColumn from "./TaskColumn"; // Import TaskColumn
 import { Task } from "./TaskCard"; // Import Task interface
 import NewTaskForm from "./NewTaskForm"; // Import the form component
+import InviteMemberForm from "./InviteMemberForm"; // Import the invite form
 
 const API_URL = "http://localhost:3000"; // Use the same base URL
 
@@ -27,6 +28,7 @@ const Dashboard: React.FC = () => {
   const accessToken = localStorage.getItem("accessToken");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false); // State for invite modal
 
   // Effect to fetch boards
   useEffect(() => {
@@ -169,6 +171,7 @@ const Dashboard: React.FC = () => {
     title: string;
     description: string;
     dueDate: string | null;
+    priority?: Task["priority"]; // Accept priority from form
   }) => {
     if (!selectedBoardId || !accessToken) {
       throw new Error(
@@ -183,6 +186,7 @@ const Dashboard: React.FC = () => {
       title: taskData.title,
       description: taskData.description,
       status: "TODO", // Default status for new tasks
+      priority: taskData.priority, // Include priority
     };
     if (taskData.dueDate) {
       apiData.dueDate = taskData.dueDate;
@@ -232,6 +236,7 @@ const Dashboard: React.FC = () => {
   const handleCloseEditModal = () => {
     setEditingTask(null);
     setIsEditModalOpen(false);
+    setError(null); // Clear errors when closing edit modal too
   };
 
   const handleUpdateTask = async (taskData: {
@@ -307,6 +312,11 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleInviteSuccess = (message: string) => {
+    alert(message); // Simple alert for success notification
+    // Could replace with a more sophisticated notification system
+  };
+
   return (
     <div className="min-h-screen bg-blue-900 p-4 flex flex-col">
       {" "}
@@ -346,6 +356,15 @@ const Dashboard: React.FC = () => {
             className="bg-green-500 text-white font-semibold py-1 px-3 rounded hover:bg-green-600 transition duration-200 text-sm h-8 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             + New Task
+          </button>
+
+          {/* Invite Member Button */}
+          <button
+            onClick={() => setIsInviteModalOpen(true)}
+            disabled={!selectedBoardId} // Disable if no board selected
+            className="bg-indigo-500 text-white font-semibold py-1 px-3 rounded hover:bg-indigo-600 transition duration-200 text-sm h-8 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            + Invite Member
           </button>
 
           <button
@@ -420,13 +439,21 @@ const Dashboard: React.FC = () => {
         />
       )}
       {/* Edit Task Modal */}
-      {isEditModalOpen && editingTask && (
+      {isEditModalOpen && editingTask && selectedBoardId && (
         <NewTaskForm
-          boardId={selectedBoardId!}
+          boardId={selectedBoardId}
           isEditing
           initialData={editingTask}
           onClose={handleCloseEditModal}
           onSubmit={handleUpdateTask}
+        />
+      )}
+      {/* Invite Member Modal */}
+      {isInviteModalOpen && selectedBoardId && (
+        <InviteMemberForm
+          boardId={selectedBoardId}
+          onClose={() => setIsInviteModalOpen(false)}
+          onInviteSuccess={handleInviteSuccess} // Pass success handler
         />
       )}
     </div>
