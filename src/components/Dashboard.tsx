@@ -238,35 +238,45 @@ const Dashboard: React.FC = () => {
     title: string;
     description: string;
     dueDate: string | null;
+    priority?: Task["priority"]; // Accept priority from form
   }) => {
     if (!editingTask || !selectedBoardId || !accessToken) {
       throw new Error(
         "Cannot update task: No task selected or not authenticated."
       );
     }
+
+    setError(null);
+
+    // Optimistic Update - include priority
     const originalTasks = [...tasks];
     const updatedTaskDataForOptimistic = {
-      // Renamed variable for clarity
       ...editingTask,
       title: taskData.title,
       description: taskData.description,
       dueDate: taskData.dueDate,
+      priority: taskData.priority, // Include priority in optimistic update
     };
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
         task.id === editingTask.id ? updatedTaskDataForOptimistic : task
       )
     );
+
+    // Prepare data for API - include priority
     const apiData: any = {
       title: taskData.title,
       description: taskData.description,
       dueDate: taskData.dueDate,
-      // status: statusForApi // If status was editable here, map DONE -> COMPLETED
+      priority: taskData.priority, // Send priority to API
+      // Note: If API expects priority only if changed, add logic here
+      // status: statusForApi // Status is not editable in this form
     };
+
     try {
       const response = await axios.patch(
         `${API_URL}/boards/${selectedBoardId}/tasks/${editingTask.id}`,
-        apiData,
+        apiData, // Send updated data including priority
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -274,17 +284,21 @@ const Dashboard: React.FC = () => {
           },
         }
       );
+
+      // Update local state with response data (including potential priority update)
       const savedTask = response.data as Task;
       if ((savedTask.status as any) === "DONE") {
         savedTask.status = "COMPLETED";
       }
+      // Ensure priority from API is also correctly set in state
       setTasks((prevTasks) =>
         prevTasks.map((task) => (task.id === savedTask.id ? savedTask : task))
       );
+
       handleCloseEditModal();
     } catch (err: any) {
       console.error(`Failed to update task ${editingTask.id}:`, err);
-      setTasks(originalTasks);
+      setTasks(originalTasks); // Revert optimistic update
       const message =
         axios.isAxiosError(err) && err.response?.data?.message
           ? err.response.data.message

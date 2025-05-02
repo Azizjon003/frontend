@@ -2,6 +2,14 @@ import React, { useState, useEffect } from "react";
 
 import { Task } from "./TaskCard"; // Import Task interface
 
+// Priority options consistent with Task interface
+const priorityOptions: Task["priority"][] = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "HIGHEST",
+];
+
 interface NewTaskFormProps {
   boardId: string;
   onClose: () => void;
@@ -9,6 +17,7 @@ interface NewTaskFormProps {
     title: string;
     description: string;
     dueDate: string | null;
+    priority?: Task["priority"]; // Add priority field
   }) => Promise<void>;
   initialData?: Task; // Optional initial data for editing
   isEditing?: boolean; // Flag to indicate edit mode
@@ -42,6 +51,9 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDateTime, setDueDateTime] = useState("");
+  const [priority, setPriority] = useState<Task["priority"] | undefined>(
+    undefined
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,9 +63,10 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
       setTitle(initialData.title || "");
       setDescription(initialData.description || "");
       setDueDateTime(formatISOToLocalDateTime(initialData.dueDate));
+      setPriority(initialData.priority);
+    } else {
+      setPriority(undefined);
     }
-    // Reset form when initialData/isEditing changes (e.g., closing and reopening)
-    // Or handle reset logic in the parent component
   }, [isEditing, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,7 +93,7 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
       }
     }
     try {
-      await onSubmit({ title, description, dueDate: isoDueDate });
+      await onSubmit({ title, description, dueDate: isoDueDate, priority });
       onClose();
     } catch (apiError: any) {
       setError(
@@ -134,6 +147,30 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
               placeholder="Task description"
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
+          </div>
+          {/* Priority Select */}
+          <div>
+            <label
+              htmlFor="task-priority"
+              className="block text-sm font-medium text-gray-600 mb-1"
+            >
+              Priority
+            </label>
+            <select
+              id="task-priority"
+              value={priority ?? ""}
+              onChange={(e) =>
+                setPriority((e.target.value as Task["priority"]) || undefined)
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+            >
+              <option value="">-- Select Priority --</option>
+              {priorityOptions.map((prio) => (
+                <option key={prio} value={prio}>
+                  {prio ? prio.charAt(0) + prio.slice(1).toLowerCase() : ""}
+                </option>
+              ))}
+            </select>
           </div>
           {/* Due Date Input */}
           <div>
