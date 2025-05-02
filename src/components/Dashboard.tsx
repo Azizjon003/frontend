@@ -350,19 +350,22 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Find the selected board object
+  const selectedBoard = boards.find((board) => board.id === selectedBoardId);
+
   return (
     <div className="min-h-screen bg-blue-900 p-4 flex flex-col">
-      {" "}
-      {/* Ensure vertical layout */}
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6 px-4 flex-wrap">
+      {/* Header - Apply flex-wrap and adjust gaps/margins for responsiveness */}
+      <div className="flex justify-between items-center mb-6 px-2 sm:px-4 flex-wrap gap-y-3 gap-x-4">
         {" "}
-        {/* Allow wrapping */}
-        <h1 className="text-2xl font-bold text-white mr-4 mb-2 sm:mb-0">
-          TaskFlow
+        {/* Reduced horizontal padding on smallest screens, added gap-y */}
+        <h1 className="text-xl sm:text-2xl font-bold text-white mr-auto">
+          {selectedBoard ? selectedBoard.title : "TaskFlow"}
         </h1>
-        {/* Board Selector Dropdown */}
-        <div className="flex items-center space-x-4">
+        {/* Buttons and Selector Group */}
+        <div className="flex items-center space-x-2 sm:space-x-3 flex-wrap gap-2">
+          {" "}
+          {/* Allow button group to wrap, add gap */}
           {/* Create Board Button */}
           <button
             onClick={() => setIsCreateBoardModalOpen(true)}
@@ -370,16 +373,21 @@ const Dashboard: React.FC = () => {
           >
             + Create Board
           </button>
-
+          {/* Board Selector */}
           {loadingBoards ? (
-            <span className="text-white text-sm">Loading boards...</span>
+            <span className="text-white text-sm h-8 flex items-center px-3">
+              Loading...
+            </span> // Added padding for alignment
           ) : boards.length > 0 ? (
             <select
-              value={selectedBoardId ?? ""} // Handle null case for select value
-              onChange={(e) => setSelectedBoardId(e.target.value || null)} // Set to null if empty option selected
-              className="bg-blue-700 text-white border border-blue-600 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={selectedBoardId ?? ""}
+              onChange={(e) => {
+                setSelectedBoardId(e.target.value || null);
+                setError(null);
+              }}
+              className="bg-blue-700 text-white border border-blue-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-8 order-first sm:order-none" // Move selector first on small screens
             >
-              <option value="">-- Select a Board --</option>
+              <option value="">-- Select Board --</option>
               {boards.map((board) => (
                 <option key={board.id} value={board.id}>
                   {board.title}
@@ -387,27 +395,29 @@ const Dashboard: React.FC = () => {
               ))}
             </select>
           ) : (
-            <span className="text-yellow-300 text-sm">No boards found.</span>
+            !loadingBoards && (
+              <span className="text-yellow-300 text-sm h-8 flex items-center px-3">
+                No boards yet.
+              </span>
+            ) // Added padding
           )}
-
           {/* Add New Task Button */}
           <button
             onClick={() => setIsNewTaskModalOpen(true)}
-            disabled={!selectedBoardId || loadingTasks} // Disable if no board selected or tasks are loading
+            disabled={!selectedBoardId || loadingTasks}
             className="bg-green-500 text-white font-semibold py-1 px-3 rounded hover:bg-green-600 transition duration-200 text-sm h-8 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             + New Task
           </button>
-
           {/* Invite Member Button */}
           <button
             onClick={() => setIsInviteModalOpen(true)}
-            disabled={!selectedBoardId} // Disable if no board selected
+            disabled={!selectedBoardId}
             className="bg-indigo-500 text-white font-semibold py-1 px-3 rounded hover:bg-indigo-600 transition duration-200 text-sm h-8 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             + Invite Member
           </button>
-
+          {/* Logout Button */}
           <button
             onClick={handleLogout}
             className="bg-red-500 text-white font-semibold py-1 px-3 rounded hover:bg-red-600 transition duration-200 text-sm h-8"
