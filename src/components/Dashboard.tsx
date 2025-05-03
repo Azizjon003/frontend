@@ -453,7 +453,7 @@ const Dashboard: React.FC = () => {
     setError(null); // Clear previous errors
 
     try {
-      const response = await axios.delete(
+      await axios.delete(
         `${API_URL}/boards/${selectedBoardId}/tasks/${taskId}`,
         {
           headers: { Authorization: `Bearer ${accessToken}` },

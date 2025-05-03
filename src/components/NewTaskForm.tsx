@@ -48,6 +48,7 @@ const NewTaskForm: React.FC<NewTaskFormProps> = ({
   initialData,
   isEditing = false, // Default to false
 }) => {
+  console.log(boardId);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDateTime, setDueDateTime] = useState("");
