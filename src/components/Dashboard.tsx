@@ -9,7 +9,7 @@ import CreateBoardForm from "./CreateBoardForm"; // Import the create board form
 import BoardMembersModal from "./BoardMembersModal"; // Import the new modal
 import { Users } from "lucide-react"; // Only Users needed in header now
 
-const API_URL = "http://localhost:3000"; // Use the same base URL
+const API_URL = "https://task-paz7d.ondigitalocean.app"; // Use the same base URL
 
 // Define Board interface based on GET /boards response
 interface Board {
