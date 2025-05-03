@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 // import { User, Lock, Mail } from "lucide-react"; // Removed icon import
 
-const API_URL = "https://task-paz7d.ondigitalocean.app"; // Base URL for API
+const API_URL = "http://localhost:3000"; // Base URL for API
 
 const SignUp: React.FC = () => {
   const [name, setName] = useState("");

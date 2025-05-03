@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios"; // Import axios if not already done globally
 
-const API_URL = "https://task-paz7d.ondigitalocean.app"; // Ensure API_URL is defined
+const API_URL = "http://localhost:3000"; // Ensure API_URL is defined
 
 interface InviteMemberFormProps {
   boardId: string;
